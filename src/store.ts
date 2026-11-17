@@ -1,5 +1,8 @@
-export const PRINTERS = ["Bambu Lab", "K1C"] as const;
-export type Printer = (typeof PRINTERS)[number];
+export type Printer = string;
+const DEFAULT_PRINTERS: Printer[] = ["Bambu Lab", "K1C"];
+
+export const samePrinter = (a: Printer, b: Printer) =>
+  a.trim().toLocaleLowerCase("es") === b.trim().toLocaleLowerCase("es");
 
 export const BED_STATUSES = ["pendiente", "imprimiendo", "lista"] as const;
 export type BedStatus = (typeof BED_STATUSES)[number];
@@ -28,7 +31,12 @@ export type Delivery = {
   color: ColorKey;
 };
 export type DeliveryPatch = Partial<Omit<Delivery, "id">>;
-export type State = { tasks: Task[]; flows: Flow[]; deliveries: Delivery[] };
+export type State = {
+  tasks: Task[];
+  flows: Flow[];
+  deliveries: Delivery[];
+  printers: Printer[];
+};
 
 export type Action =
   | { type: "addTask"; title: string }
@@ -46,7 +54,9 @@ export type Action =
   | { type: "addDelivery"; delivery: Omit<Delivery, "id"> }
   | { type: "updateDelivery"; id: string; patch: DeliveryPatch }
   | { type: "removeDelivery"; id: string }
-  | { type: "restoreDelivery"; delivery: Delivery };
+  | { type: "restoreDelivery"; delivery: Delivery }
+  | { type: "addPrinter"; name: Printer }
+  | { type: "removePrinter"; name: Printer };
 
 const STORAGE_KEY = "apptareas.v1";
 
@@ -82,6 +92,7 @@ const initialState = (): State => ({
     },
   ],
   deliveries: [],
+  printers: DEFAULT_PRINTERS,
 });
 
 export function loadState(): State {
@@ -95,6 +106,9 @@ export function loadState(): State {
           tasks: parsed.tasks.map(({ id, title }) => ({ id, title })),
           flows: parsed.flows.map(({ id, name, beds }) => ({ id, name, beds })),
           deliveries: Array.isArray(parsed.deliveries) ? parsed.deliveries : [],
+          printers: Array.isArray(parsed.printers)
+            ? parsed.printers
+            : DEFAULT_PRINTERS,
         };
       }
     }
@@ -224,6 +238,14 @@ export function reducer(state: State, action: Action): State {
       return {
         ...state,
         deliveries: [...state.deliveries, action.delivery],
+      };
+    case "addPrinter":
+      if (state.printers.some((p) => samePrinter(p, action.name))) return state;
+      return { ...state, printers: [...state.printers, action.name.trim()] };
+    case "removePrinter":
+      return {
+        ...state,
+        printers: state.printers.filter((printer) => printer !== action.name),
       };
   }
 }

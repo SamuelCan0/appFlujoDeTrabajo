@@ -474,19 +474,103 @@ input::placeholder {
 }
 
 .printer-chip {
-  width: 80px;
-  padding: 3px 0;
+  min-width: 80px;
+  max-width: 160px;
+  padding: 3px 10px;
   border: 1px solid var(--surface-3);
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
+  font: inherit;
   font-size: 12.5px;
-  white-space: nowrap;
+  text-align-last: center;
+  text-overflow: ellipsis;
+  appearance: none;
+  cursor: pointer;
 }
 
 .printer-chip:hover {
   border-color: var(--muted);
   color: var(--text);
+}
+
+.printer-chip option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.printers-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  animation: enter 0.16s ease-out;
+}
+
+.printers-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.printers-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.printer-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.printer-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 2px 12px;
+  border: 1px solid var(--surface-3);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 13px;
+}
+
+.printer-item .icon-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.printer-item .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.printer-add {
+  display: flex;
+  gap: 8px;
+}
+
+.printer-add .text-input {
+  flex: 1;
+}
+
+.text-input[aria-invalid="true"] {
+  border-color: #ff5c5c;
+}
+
+.field-error {
+  margin: -4px 0 0;
+  color: #ff8a8a;
+  font-size: 12.5px;
 }
 
 .segments {
@@ -541,6 +625,7 @@ input::placeholder {
 
 .add-bed {
   display: flex;
+  flex-wrap: wrap;
   margin-left: -8px;
 }
 

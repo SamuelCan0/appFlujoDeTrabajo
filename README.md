@@ -18,7 +18,8 @@ Funciona sin internet y solo guarda lo que sigue en curso: lo terminado se borra
 
 ### Flujo de trabajo
 - Cada trabajo tiene sus camas de impresión.
-- Cada cama se asigna a una impresora (Bambu Lab o K1C) y tiene un estado: Pendiente, Imprimiendo o Lista.
+- Cada cama se asigna a una impresora y tiene un estado: Pendiente, Imprimiendo o Lista.
+- Con el botón **Impresoras** se agregan máquinas nuevas a la lista; al principio vienen Bambu Lab y K1C. Una impresora solo se puede quitar si ninguna cama la está usando.
 - Una barra muestra el avance, y la cabecera indica cuántas camas están imprimiendo.
 - Cuando todas las camas están listas, **Finalizar y borrar** elimina el trabajo.
 

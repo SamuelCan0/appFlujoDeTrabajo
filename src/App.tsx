@@ -14,8 +14,8 @@ import {
   type Task,
   type Delivery,
   BED_STATUSES,
-  PRINTERS,
   loadState,
+  samePrinter,
   reducer,
   saveState,
 } from "./store";
@@ -68,6 +68,11 @@ const MinusIcon = () => (
 const CloseIcon = () => (
   <Icon>
     <path d="M6 6l12 12M18 6L6 18" />
+  </Icon>
+);
+const PrinterIcon = () => (
+  <Icon>
+    <path d="M5 4h14v4H5zM7 8v8M17 8v8M4 16h16v4H4zM10 12h4" />
   </Icon>
 );
 
@@ -250,19 +255,109 @@ function Stepper({
   );
 }
 
-function NewFlowForm({
+function PrintersPanel({
+  printers,
+  inUse,
   dispatch,
   onClose,
 }: {
+  printers: Printer[];
+  inUse: Set<Printer>;
   dispatch: Dispatch;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
-  const [counts, setCounts] = useState<Record<Printer, number>>({
-    "Bambu Lab": 1,
-    K1C: 0,
-  });
-  const total = PRINTERS.reduce((sum, printer) => sum + counts[printer], 0);
+  const clean = name.trim();
+  const duplicate = printers.some((printer) => samePrinter(printer, clean));
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!clean || duplicate) return;
+    dispatch({ type: "addPrinter", name: clean });
+    setName("");
+  };
+
+  return (
+    <div
+      className="printers-panel"
+      onKeyDown={(event) => event.key === "Escape" && onClose()}
+    >
+      <header className="printers-head">
+        <h3>Impresoras</h3>
+        <button
+          className="icon-button"
+          aria-label="Cerrar impresoras"
+          onClick={onClose}
+        >
+          <CloseIcon />
+        </button>
+      </header>
+
+      <ul className="printer-list">
+        {printers.map((printer) => {
+          const used = inUse.has(printer);
+          const last = printers.length === 1;
+          return (
+            <li key={printer} className="printer-item">
+              <span>{printer}</span>
+              <button
+                className="icon-button"
+                aria-label={`Quitar ${printer}`}
+                title={
+                  used
+                    ? "Está asignada a alguna cama"
+                    : last
+                      ? "Debe quedar al menos una impresora"
+                      : "Quitar impresora"
+                }
+                disabled={used || last}
+                onClick={() => dispatch({ type: "removePrinter", name: printer })}
+              >
+                <CloseIcon />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      <form className="printer-add" onSubmit={submit}>
+        <input
+          className="text-input"
+          autoFocus
+          value={name}
+          placeholder="Nombre de la nueva máquina"
+          aria-label="Nombre de la nueva máquina"
+          aria-invalid={duplicate}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <button
+          type="submit"
+          className="button button-primary"
+          disabled={!clean || duplicate}
+        >
+          <PlusIcon /> Agregar
+        </button>
+      </form>
+      {duplicate && <p className="field-error">Ya existe esa impresora.</p>}
+    </div>
+  );
+}
+
+function NewFlowForm({
+  printers,
+  dispatch,
+  onClose,
+}: {
+  printers: Printer[];
+  dispatch: Dispatch;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [counts, setCounts] = useState<Record<Printer, number>>(() =>
+    Object.fromEntries(printers.map((printer, i) => [printer, i === 0 ? 1 : 0])),
+  );
+  const count = (printer: Printer) => counts[printer] ?? 0;
+  const total = printers.reduce((sum, printer) => sum + count(printer), 0);
   const canSubmit = name.trim() !== "" && total > 0;
 
   const submit = (event: FormEvent) => {
@@ -271,8 +366,8 @@ function NewFlowForm({
     dispatch({
       type: "addFlow",
       name: name.trim(),
-      printers: PRINTERS.flatMap((printer) =>
-        Array<Printer>(counts[printer]).fill(printer),
+      printers: printers.flatMap((printer) =>
+        Array<Printer>(count(printer)).fill(printer),
       ),
     });
     onClose();
@@ -293,11 +388,11 @@ function NewFlowForm({
         onChange={(event) => setName(event.target.value)}
       />
       <div className="steppers">
-        {PRINTERS.map((printer) => (
+        {printers.map((printer) => (
           <Stepper
             key={printer}
             label={printer}
-            value={counts[printer]}
+            value={count(printer)}
             onChange={(value) => setCounts({ ...counts, [printer]: value })}
           />
         ))}
@@ -320,10 +415,12 @@ function NewFlowForm({
 
 function FlowCard({
   flow,
+  printers,
   dispatch,
   onRemove,
 }: {
   flow: Flow;
+  printers: Printer[];
   dispatch: Dispatch;
   onRemove: () => void;
 }) {
@@ -363,26 +460,31 @@ function FlowCard({
 
       <ul className="beds">
         {flow.beds.map((bed, index) => {
-          const nextPrinter =
-            PRINTERS[(PRINTERS.indexOf(bed.printer) + 1) % PRINTERS.length];
+          const options = printers.includes(bed.printer)
+            ? printers
+            : [bed.printer, ...printers];
           return (
             <li key={bed.id} className={`bed bed-${bed.status}`}>
               <span className="bed-name">Cama {index + 1}</span>
-              <button
+              <select
                 className="printer-chip"
-                aria-label={`Cama ${index + 1}: ${bed.printer}. Cambiar a ${nextPrinter}`}
-                title={`Cambiar a ${nextPrinter}`}
-                onClick={() =>
+                value={bed.printer}
+                aria-label={`Impresora de la cama ${index + 1}`}
+                onChange={(event) =>
                   dispatch({
                     type: "setBedPrinter",
                     flowId: flow.id,
                     bedId: bed.id,
-                    printer: nextPrinter,
+                    printer: event.target.value,
                   })
                 }
               >
-                {bed.printer}
-              </button>
+                {options.map((printer) => (
+                  <option key={printer} value={printer}>
+                    {printer}
+                  </option>
+                ))}
+              </select>
               <div
                 className="segments"
                 role="group"
@@ -428,7 +530,7 @@ function FlowCard({
 
       <footer className="flow-foot">
         <div className="add-bed">
-          {PRINTERS.map((printer) => (
+          {printers.map((printer) => (
             <button
               key={printer}
               className="button button-quiet"
@@ -452,23 +554,36 @@ function FlowCard({
 
 function FlowsPanel({
   flows,
+  printers,
   dispatch,
   showUndo,
 }: {
   flows: Flow[];
+  printers: Printer[];
   dispatch: Dispatch;
   showUndo: (undo: Undo) => void;
 }) {
   const [creating, setCreating] = useState(false);
+  const [managing, setManaging] = useState(false);
+  const inUse = new Set(
+    flows.flatMap((flow) => flow.beds.map((bed) => bed.printer)),
+  );
 
   return (
     <section className="panel" aria-labelledby="flows-heading">
       <header className="panel-head">
         <h2 id="flows-heading">Flujo de trabajo</h2>
         <span className="count">{flows.length}</span>
+        <button
+          className="button panel-action"
+          aria-expanded={managing}
+          onClick={() => setManaging(!managing)}
+        >
+          <PrinterIcon /> Impresoras
+        </button>
         {!creating && (
           <button
-            className="button button-primary panel-action"
+            className="button button-primary"
             onClick={() => setCreating(true)}
           >
             <PlusIcon /> Nuevo flujo
@@ -476,8 +591,21 @@ function FlowsPanel({
         )}
       </header>
 
+      {managing && (
+        <PrintersPanel
+          printers={printers}
+          inUse={inUse}
+          dispatch={dispatch}
+          onClose={() => setManaging(false)}
+        />
+      )}
+
       {creating && (
-        <NewFlowForm dispatch={dispatch} onClose={() => setCreating(false)} />
+        <NewFlowForm
+          printers={printers}
+          dispatch={dispatch}
+          onClose={() => setCreating(false)}
+        />
       )}
 
       {flows.length === 0 && !creating ? (
@@ -488,6 +616,7 @@ function FlowsPanel({
             <FlowCard
               key={flow.id}
               flow={flow}
+              printers={printers}
               dispatch={dispatch}
               onRemove={() => {
                 dispatch({ type: "removeFlow", id: flow.id });
@@ -544,6 +673,7 @@ export default function App() {
         />
         <FlowsPanel
           flows={state.flows}
+          printers={state.printers}
           dispatch={dispatch}
           showUndo={setUndo}
         />
